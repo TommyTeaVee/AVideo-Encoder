@@ -4,7 +4,10 @@ if (file_exists("../videos/configuration.php")) {
     error_log("Can not create configuration again: ".  json_encode($_SERVER));
     exit;
 }
-$installationVersion = "3.8";
+
+require_once '../objects/functions.php';
+
+$installationVersion = "3.9";
 
 header('Content-Type: application/json');
 
@@ -24,11 +27,6 @@ if (!file_exists($_POST['systemRootPath'] . "index.php")) {
 }
 
 $mysqli = @new mysqli($_POST['databaseHost'], $_POST['databaseUser'], $_POST['databasePass']);
-
-/*
- * This is the "official" OO way to do it,
- * BUT $connect_error was broken until PHP 5.2.9 and 5.3.0.
- */
 if ($mysqli->connect_error) {
     $obj->error = ('Connect Error (' . $mysqli->connect_errno . ') ' . $mysqli->connect_error);
     echo json_encode($obj);
@@ -45,15 +43,10 @@ if ($_POST['createTables'] == 2) {
 }
 $mysqli->select_db($_POST['databaseName']);
 
-/*
-  $cmd = "mysql -h {$_POST['databaseHost']} -u {$_POST['databaseUser']} -p {$_POST['databasePass']} {$_POST['databaseName']} < {$_POST['systemRootPath']}install/database.sql";
-  exec("{$cmd} 2>&1", $output, $return_val);
-  if ($return_val !== 0) {
-  $obj->error = "Error on command: {$cmd}";
-  echo json_encode($obj);
-  exit;
-  }
- */
+$tablesPrefix = '';
+if(!empty($_REQUEST['tablesPrefix'])){
+    $tablesPrefix = preg_replace('/[^0-9a-z_]/i', '', $_REQUEST['tablesPrefix']);
+}
 if ($_POST['createTables'] > 0) {
 // Temporary variable, used to store current query
     $templine = '';
@@ -65,11 +58,14 @@ if ($_POST['createTables'] > 0) {
 // Skip it if it's a comment
         if (substr($line, 0, 2) == '--' || $line == '')
             continue;
-
 // Add this line to the current segment
         $templine .= $line;
 // If it has a semicolon at the end, it's the end of the query
         if (substr(trim($line), -1, 1) == ';') {
+            if(!empty($tablesPrefix)){
+                $templine = addPrefixIntoQuery($templine, $tablesPrefix);
+            }
+            //echo $templine.PHP_EOL;
             // Perform the query
             if (!$mysqli->query($templine)) {
                 $obj->error = ('Error performing query \'<strong>' . $templine . '\': ' . $mysqli->error . '<br /><br />');
@@ -85,14 +81,14 @@ if (substr($_POST['siteURL'], -1) !== '/') {
     $_POST['siteURL'] .= "/";
 }
 
-$sql = "INSERT INTO streamers (siteURL, user, pass, priority, created, modified, isAdmin) VALUES ('{$_POST['siteURL']}', '{$_POST['inputUser']}', '{$_POST['inputPassword']}', 1, now(), now(), 1)";
+$sql = "INSERT INTO {$tablesPrefix}streamers (siteURL, user, pass, priority, created, modified, isAdmin) VALUES ('{$_POST['siteURL']}', '{$_POST['inputUser']}', '{$_POST['inputPassword']}', 1, now(), now(), 1)";
 if ($mysqli->query($sql) !== TRUE) {
     $obj->error = "Error creating streamer: " . $mysqli->error;
     echo json_encode($obj);
     exit;
 }
 
-$sql = "INSERT INTO configurations (id, allowedStreamersURL, defaultPriority, version, created, modified) VALUES (1, '{$_POST['allowedStreamers']}', '{$_POST['defaultPriority']}', '{$installationVersion}', now(), now())";
+$sql = "INSERT INTO {$tablesPrefix}configurations_encoder (id, allowedStreamersURL, defaultPriority, version, created, modified) VALUES (1, '{$_POST['allowedStreamers']}', '{$_POST['defaultPriority']}', '{$installationVersion}', now(), now())";
 if ($mysqli->query($sql) !== TRUE) {
     $obj->error = "Error creating streamer: " . $mysqli->error;
     echo json_encode($obj);
@@ -103,6 +99,7 @@ $mysqli->close();
 
 $content = "<?php
 \$global['configurationVersion'] = 2;
+\$global['tablesPrefix'] = '{$tablesPrefix}';
 \$global['webSiteRootURL'] = '{$_POST['webSiteRootURL']}';
 \$global['systemRootPath'] = '{$_POST['systemRootPath']}';
 \$global['webSiteRootPath'] = '';

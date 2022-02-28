@@ -15,11 +15,21 @@ if (!class_exists('Configuration')) {
         }
 
         static function getTableName() {
-            return 'configurations';
+            global $global;
+            return $global['tablesPrefix'] . 'configurations_encoder';
         }
 
         function __construct() {
-            $this->load(1);
+            global $global;
+            try {
+                $this->load(1);
+            } catch (Exception $exc) {
+                
+            }
+
+            if (empty($this->version)) {
+                $this->loadOld();
+            }
         }
 
         function getAllowedStreamersURL() {
@@ -86,10 +96,11 @@ if (!class_exists('Configuration')) {
             return version_compare($version, $this->getVersion()) == 0;
         }
 
-        static function rewriteConfigFile() {
+        static function rewriteConfigFile($configurationVersion = 2) {
             global $global, $mysqlHost, $mysqlUser, $mysqlPass, $mysqlDatabase;
             $content = "<?php
-\$global['configurationVersion'] = 2;
+\$global['configurationVersion'] = {$configurationVersion};
+\$global['tablesPrefix'] = '{$global['tablesPrefix']}';
 \$global['webSiteRootURL'] = '{$global['webSiteRootURL']}';
 \$global['systemRootPath'] = '{$global['systemRootPath']}';
 \$global['webSiteRootPath'] = '" . (@$global['webSiteRootPath']) . "';
@@ -125,6 +136,29 @@ require_once \$global['systemRootPath'] . 'objects/include_config.php';
             $fp = fopen($global['systemRootPath'] . "videos/configuration.php", "wb");
             fwrite($fp, $content);
             fclose($fp);
+        }
+
+        static function getOldConfig() {
+            global $global;
+            $sql = "SELECT * FROM configurations WHERE  id = 1 LIMIT 1";
+            $global['lastQuery'] = $sql;
+            $res = $global['mysqli']->query($sql);
+            if ($res) {
+                $user = $res->fetch_assoc();
+            } else {
+                $user = false;
+            }
+            return $user;
+        }
+
+        protected function loadOld() {
+            $user = self::getOldConfig();
+            if (empty($user))
+                return false;
+            foreach ($user as $key => $value) {
+                $this->$key = $value;
+            }
+            return true;
         }
 
     }

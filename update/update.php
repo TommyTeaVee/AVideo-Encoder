@@ -47,6 +47,9 @@
                         continue;
                     $templine .= $line;
                     if (substr(trim($line), -1, 1) == ';') {
+                        if(!empty($global['tablesPrefix'])){
+                            $templine = addPrefixIntoQuery($templine, $global['tablesPrefix']);
+                        }
                         if (!$global['mysqli']->query($templine)) {
                             $obj->error = ('Error performing query \'<strong>' . $templine . '\': ' . $global['mysqli']->error . '<br /><br />');
                             echo json_encode($obj);
@@ -56,7 +59,6 @@
                     }
                 }
 
-                //$renamed = rename("{$global['systemRootPath']}updateDb.sql", "{$global['systemRootPath']}updateDb.sql.old");
                 ?>
                 <div class="alert alert-success">
                     <?php
