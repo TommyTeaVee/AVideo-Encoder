@@ -745,10 +745,16 @@ hd/index.m3u8
         }
 
         static function videoFileHasErrors($filename, $allowed_extensions = true) {
+            global $global;
             if (!file_exists($filename)) {
                 error_log("videoFileHasErrors: file not exists {$filename}");
                 return true;
             }
+            
+            if(!empty($global['byPassVideoFileHasErrors'])){
+                return false;
+            }
+            
             $errorLogFile = $filename . '.error.log';
 
             /**
@@ -846,8 +852,13 @@ hd/index.m3u8
         }
 
         static function createIfNotExists($name) {
+            if(empty($name)){
+                return false;
+            }
+            error_log("createIfNotExists($name) checking");
             $row = static::getFromName($name);
             if (empty($row)) {
+                error_log("createIfNotExists($name) not found, create a new one");
                 $f = new Format("");
                 $f->setName($name);
                 $f->setExtension($name);
@@ -886,7 +897,8 @@ hd/index.m3u8
         }
 
         function setName($name) {
-            $this->name = $name;
+            global $global;
+            $this->name = $global['mysqli']->real_escape_string($name);
         }
 
         function setCode($code) {
@@ -903,7 +915,8 @@ hd/index.m3u8
         }
 
         function setExtension($extension) {
-            $this->extension = $extension;
+            global $global;
+            $this->extension = $global['mysqli']->real_escape_string($extension);
         }
 
         function getExtension_from() {

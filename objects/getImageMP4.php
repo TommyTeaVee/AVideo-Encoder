@@ -19,6 +19,12 @@ require_once dirname(__FILE__) . '/../videos/configuration.php';
 require_once '../objects/Encoder.php';
 header('Access-Control-Allow-Origin: *');
 $url = base64_decode($_GET['base64Url']);
+
+if(!isURLaVODVideo($url)){
+    error_log("ERROR URL is not a VOD {$url}");
+    die();
+}
+
 $destinationFile = md5($url);
 $destination = sys_get_temp_dir() . DIRECTORY_SEPARATOR . $destinationFile;
 $destinationPallet = "{$destination}palette.png";
@@ -110,7 +116,7 @@ if ($type == 'audio') {
     } else {
         $cmd = "{$exec}";
         exec($cmd);
-        error_log("Exec get Image: {$cmd}");
+        error_log("Exec get Image: {$cmd} ".__FILE__.' '. json_encode($_SERVER['REMOTE_ADDR']));
     }
 }
 

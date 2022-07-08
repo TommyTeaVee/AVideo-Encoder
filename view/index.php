@@ -59,22 +59,19 @@ if (empty($_COOKIE['format']) && !empty($_SESSION['format'])) {
         <link rel="shortcut icon" href="<?php echo Login::getStreamerURL(); ?>videos/favicon.ico" sizes="16x16,24x24,32x32,48x48,144x144">
         <meta name="msapplication-TileImage" content="<?php echo Login::getStreamerURL(); ?>videos/favicon.png">        
 
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
-        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
-        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/sweetalert/2.1.2/sweetalert.min.js" integrity="sha512-AA1Bzp5Q0K1KanKKmvN/4d3IRKVlv9PYgwFPvm32nPO6QS8yH1HO7LbgB1pgiOxPtfeg5zEn2ba64MUcqJx6CA==" crossorigin="anonymous"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" integrity="sha512-iBBXm8fW90+nuLcSKlbmrPcLa0OT92xO1BIsZ+ywDWZCvqsWgccV3gFoRBv0z+8dLJgyAHIhR35VZc2oM/gI1w==" crossorigin="anonymous" />
-        <!--
-        <script src="<?php echo Login::getStreamerURL(); ?>view/js/jquery-3.5.1.min.js" type="text/javascript"></script>
+        <script src="<?php echo Login::getStreamerURL(); ?>node_modules/jquery/dist/jquery.min.js" type="text/javascript"></script>
         <link href="<?php echo Login::getStreamerURL(); ?>view/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css"/>
         <script src="<?php echo Login::getStreamerURL(); ?>view/bootstrap/js/bootstrap.min.js" type="text/javascript"></script>
-        <script src="<?php echo Login::getStreamerURL(); ?>view/js/seetalert/sweetalert.min.js" type="text/javascript"></script>
-        <link href="<?php echo Login::getStreamerURL(); ?>view/css/fontawesome-free-5.5.0-web/css/all.min.css"" rel="stylesheet" crossorigin="anonymous">
-        -->
+        <script src="<?php echo Login::getStreamerURL(); ?>node_modules/sweetalert/dist/sweetalert.min.js" type="text/javascript"></script>
+        <link href="<?php echo Login::getStreamerURL(); ?>node_modules/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css"/>
+        <link href="<?php echo Login::getStreamerURL(); ?>view/js/jquery-toast/jquery.toast.min.css" rel="stylesheet" type="text/css"/>
+        <script src="<?php echo Login::getStreamerURL(); ?>view/js/jquery-toast/jquery.toast.min.js" type="text/javascript"></script>
+        
         <script src="<?php echo Login::getStreamerURL(); ?>view/js/script.js" type="text/javascript"></script>
         <script src="<?php echo Login::getStreamerURL(); ?>view/js/js-cookie/js.cookie.js" type="text/javascript"></script>
 
-        <script src="https://cdn.polyfill.io/v2/polyfill.min.js"></script>
+        <script src="<?php echo $global['webSiteRootURL']; ?>view/js/polyfill.min.js" type="text/javascript"></script>
+        
         <link rel="stylesheet" href="<?php echo $global['webSiteRootURL']; ?>view/jquery-file-upload/css/jquery.fileupload.css">
         <link rel="stylesheet" href="<?php echo $global['webSiteRootURL']; ?>view/jquery-file-upload/css/jquery.fileupload-ui.css">
         <!-- CSS adjustments for browsers with JavaScript disabled -->
@@ -299,7 +296,6 @@ if (!empty($_GET['noNavbar'])) {
                                 </div>
                                 <div id="advancedOptions" class="tab-pane fade">
 
-
                                     <?php
                                     if (!empty($_SESSION['login']->userGroups) && empty($global['hideUserGroups'])) {
                                         ?>
@@ -438,7 +434,9 @@ if (!empty($_GET['noNavbar'])) {
                                                     select: function (event, ui) {
                                                         $("#videoSearch").val(ui.item.title);
                                                         $("#update_video_id").val(ui.item.id);
-                                                        $("#inputNextVideo-poster").attr("src", "<?php echo Login::getStreamerURL(); ?>videos/" + ui.item.filename + ".jpg");
+                                                        console.log(ui.item.videosURL);
+                                                        console.log(ui.item.videosURL.jpg);
+                                                        $("#inputNextVideo-poster").attr("src", ui.item.videosURL.jpg.url);
                                                         return false;
                                                     }
                                                 }).autocomplete("instance")._renderItem = function (ul, item) {
@@ -712,7 +710,7 @@ if (!empty($_GET['noNavbar'])) {
                                         if (response.download_status[i] && !response.encoding_status[i].progress) {
                                             $("#encodingProgress" + id).find('.progress-completed').html("<strong>" + response.encoding[i].name + " [Downloading ...] </strong> " + response.download_status[i].progress + '%');
                                         } else {
-                                            $("#encodingProgress" + id).find('.progress-completed').html("<strong>" + response.encoding[i].name + " [" + response.encoding_status[i].from + " to " + response.encoding_status[i].to + "] </strong> " + response.encoding_status[i].progress + '%');
+                                            $("#encodingProgress" + id).find('.progress-completed').html("<strong>" + response.encoding[i].name + " [" + response.encoding_status[i].from + " to " + response.encoding_status[i].to + "] </strong> " + response.encoding_status[i].progress + '% '+response.encoding_status[i].remainTimeHuman);
                                             $("#encodingProgress" + id).find('.progress-bar').css({'width': response.encoding_status[i].progress + '%'});
                                         }
                                         if (response.download_status[i]) {
@@ -823,6 +821,7 @@ if (!empty($_GET['noNavbar'])) {
                                             "inputAutoWebm": $('#inputAutoWebm').is(":checked"),
                                             "inputAutoAudio": $('#inputAutoAudio').is(":checked"),
                                             "categories_id": $('#bulk_categories_id').val(),
+                                            "callback": $('#callback').val(),
                                             "usergroups_id": $(".usergroups_id:checked").map(function () {
                                                 return $(this).val();
                                             }).get()
@@ -960,12 +959,22 @@ if (!empty($_GET['noNavbar'])) {
                                         label = "primary";
                                     }
                                     var status = '<span class="label label-' + label + '">' + row.status + '</span>';
+                                    
+                                    var remainTimeHuman = '';
+                                    if(row.encoding_status.remainTimeHuman){
+                                        remainTimeHuman = '<span class="label label-default">ETA ' + row.encoding_status.remainTimeHuman + '</span>';
+                                    }
 
-                                    return btn + status + "<br>" + row.status_obs;
+                                    return btn + status + "<br>" + row.status_obs + "<br>" + remainTimeHuman;
                                 },
                                 "title": function (column, row) {
                                     var l = getLocation(row.streamer);
-                                    var title = '<a href="' + row.streamer + '" target="_blank" class="btn btn-primary btn-xs">' + l.hostname + ' <span class="badge">Priority ' + row.priority + '</span></a>';
+                                    videos_id = 0;
+                                    var json = JSON.parse(row.return_vars)
+                                    if(typeof json.videos_id !== 'undefined'){
+                                        videos_id = json.videos_id;
+                                    }
+                                    var title = '<a href="' + row.streamer + '" target="_blank" class="btn btn-primary btn-xs">['+videos_id+'] ' + l.hostname + ' <span class="badge">Priority ' + row.priority + '</span></a>';
                                     title += '<br><span class="label label-primary">' + row.format + '</span>';
 
                                     for (const index in row.fileInfo) {
@@ -976,6 +985,8 @@ if (!empty($_GET['noNavbar'])) {
                                     }
 
                                     title += '<br>' + row.title;
+                                    
+                                    
                                     return title;
                                 }
                             }
@@ -1166,6 +1177,7 @@ if (!empty($_GET['noNavbar'])) {
                                                         "inputAutoWebm": $('#inputAutoWebm').is(":checked"),
                                                         "inputAutoAudio": $('#inputAutoAudio').is(":checked"),
                                                         "categories_id": $('#download_categories_id').val(),
+                                                        "callback": $('#callback').val(),
                                                         "usergroups_id": $(".usergroups_id:checked").map(function () {
                                                             return $(this).val();
                                                         }).get(),
@@ -1216,6 +1228,7 @@ if (!empty($_GET['noNavbar'])) {
                                     "inputAutoWebm": $('#inputAutoWebm').is(":checked"),
                                     "inputAutoAudio": $('#inputAutoAudio').is(":checked"),
                                     "categories_id": $('#download_categories_id').val(),
+                                    "callback": $('#callback').val(),
                                     "usergroups_id": $(".usergroups_id:checked").map(function () {
                                         return $(this).val();
                                     }).get()

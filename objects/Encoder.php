@@ -927,7 +927,19 @@ class Encoder extends ObjectYPT {
     }
 
     function verify() {
-        $streamer = new Streamer($this->getStreamers_id());
+        $streamers_id = $this->getStreamers_id();
+        if(empty($streamers_id)){
+            error_log("encoder:verify streamer id is empty");
+            return false;
+        }
+
+        $streamer = new Streamer($streamers_id);
+
+        if(empty($streamer->getSiteURL())){
+            error_log("encoder:verify sire URL is empty streamers_id={$streamers_id}");
+            return false;
+        }
+
         return $streamer->verify();
     }
 
@@ -1039,9 +1051,19 @@ class Encoder extends ObjectYPT {
         $obj->resolution = $resolution;
         $obj->videoDownloadedLink = $encoder->getVideoDownloadedLink();
         $videos_id = $return_vars->videos_id;
+        
+        if(is_object($return_vars) && !empty($_REQUEST['callback'])){
+            $return_vars->callback = $_REQUEST['callback'];
+        }
+        
         if (!empty($global['progressiveUpload']) && isset($encoder)) {
-            $u = Upload::loadFromEncoder($encoder->getId(), $resolution, $forma
-            );
+            $encoder_id = $encoder->getId();
+            if(empty($encoder_id)){
+                $obj->msg = "encoder_id is empty";
+                error_log("Encoder::sendFile {$obj->msg} ".json_encode($encoder));
+                return $obj;
+            }
+            $u = Upload::loadFromEncoder($encoder_id, $resolution, $format);
             if ($u !== false && $u->getStatus() == "done") {
                 $obj->error = false;
                 $obj->msg = "Already sent";
@@ -1133,6 +1155,7 @@ class Encoder extends ObjectYPT {
             'chunkFile' => $chunkFile,
             'encoderURL' => $global['webSiteRootURL'],
             'keepEncoding' => $keep_encoding ? "1" : "0",
+            'return_vars' => json_encode($return_vars),
         );
 
         if (!empty($encoder->override_status)) {
@@ -1638,6 +1661,8 @@ class Encoder extends ObjectYPT {
             }
             $obj->duration = $duration;
             $obj->currentTime = $time;
+            $obj->remainTime = ($obj->duration - $time);
+            $obj->remainTimeHuman = secondsToVideoTime($obj->remainTime);
             $obj->progress = $progress;
         }
 
@@ -1670,18 +1695,30 @@ class Encoder extends ObjectYPT {
             return $getDurationFromFile[$file];
         }
 
+        $hls = str_replace(".zip", "/index.m3u8", $file);
         $file = str_replace(".zip", ".mp4", $file);
 
         // get movie duration HOURS:MM:SS.MICROSECONDS
-        if (!file_exists($file)) {
-            $file_headers = @get_headers($file);
+        $videoFile = $file;
+        if (!file_exists($videoFile)) {
+            $file_headers = @get_headers($videoFile);
             if (!$file_headers || $file_headers[0] == 'HTTP/1.1 404 Not Found') {
-                error_log('{"status":"error", "msg":"getDurationFromFile ERROR, File (' . $file . ') Not Found"}');
-                return "EE:EE:EE";
+                error_log('getDurationFromFile try 1, File (' . $videoFile . ') Not Found');
+                $videoFile = $hls;
             }
         }
+        if (!file_exists($videoFile)) {
+            $file_headers = @get_headers($videoFile);
+            if (!$file_headers || $file_headers[0] == 'HTTP/1.1 404 Not Found') {
+                error_log('getDurationFromFile try 2, File (' . $videoFile . ') Not Found');
+                $videoFile = '';
+            }
+        }
+        if (empty($videoFile)) {
+            return "EE:EE:EE";
+        }
         //$cmd = 'ffprobe -i ' . $file . ' -sexagesimal -show_entries  format=duration -v quiet -of csv="p=0"';
-        eval('$cmd=get_ffprobe()." -i \"{$file}\" -sexagesimal -show_entries  format=duration -v quiet -of csv=\\"p=0\\"";');
+        eval('$cmd=get_ffprobe()." -i \"{$videoFile}\" -sexagesimal -show_entries  format=duration -v quiet -of csv=\\"p=0\\"";');
         exec($cmd . ' 2>&1', $output, $return_val);
         if ($return_val !== 0) {
             error_log('{"status":"error", "msg":' . json_encode($output) . ' ,"return_val":' . json_encode($return_val) . ', "where":"getDuration", "cmd":"' . $cmd . '"}');
@@ -1705,6 +1742,10 @@ class Encoder extends ObjectYPT {
 
     static function getImage($pathFileName, $seconds = 5) {
         global $global;
+        if(preg_match('/\.mp3$/', $pathFileName)){
+            error_log("getImage: do not create files from MP3 ".$pathFileName);
+            return false;
+        }
         $destinationFile = "{$pathFileName}.jpg";
         // do not encode again
         if (file_exists($destinationFile)) {
@@ -1758,6 +1799,12 @@ class Encoder extends ObjectYPT {
 
     static function getGifImage($pathFileName, $seconds = 5, $howLong = 3) {
         //error_log("getGifImage");
+        
+        if(preg_match('/\.mp3$/', $pathFileName)){
+            error_log("getGifImage: do not create files from MP3 ".$pathFileName);
+            return false;
+        }
+        
         global $global;
         $destinationFile = "{$pathFileName}.gif";
         // do not encode again
@@ -1806,6 +1853,10 @@ class Encoder extends ObjectYPT {
 
     static function getWebpImage($pathFileName, $seconds = 5, $howLong = 3) {
         //error_log("getWebpImage");
+        if(preg_match('/\.mp3$/', $pathFileName)){
+            error_log("getWebpImage: do not create files from MP3 ".$pathFileName);
+            return false;
+        }
         global $global;
         $destinationFile = "{$pathFileName}.webp";
         // do not encode again
@@ -1944,15 +1995,18 @@ class Encoder extends ObjectYPT {
         if (!isWindows()) {
             $prepend = 'LC_ALL=en_US.UTF-8 ';
         }
+        $response = array('error'=>true, 'output'=>array());
         $cmd = $prepend . self::getYouTubeDLCommand() . "  --no-check-certificate --no-playlist --force-ipv4 --skip-download -e \"{$link}\"";
         exec($cmd . "  2>&1", $output, $return_val);
         if ($return_val !== 0) {
             error_log("getTitleFromLink: Get Title Error: $cmd \n" . print_r($output, true));
-            return false;
+            $response['output'] = $output;
         } else {
             error_log("getTitleFromLink: Get Title: $cmd \n" . print_r($output, true));
-            return end($output);
+            $response['output'] = end($output);
+            $response['error'] = false;
         }
+        return $response;
     }
 
     static function getDurationFromLink($link) {
@@ -2021,6 +2075,8 @@ class Encoder extends ObjectYPT {
         global $global;
         if (!empty($global['youtube-dl'])) {
             return $global['youtube-dl'] . ' ';
+        } else if (file_exists("/usr/local/bin/yt-dlp")) {
+            return "/usr/local/bin/yt-dlp ";
         } else if (file_exists("/usr/local/bin/youtube-dl")) {
             return "/usr/local/bin/youtube-dl ";
         } else {
